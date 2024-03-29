@@ -1,0 +1,37 @@
+/**
+ * These arguments were used when this file was generated. They will be automatically applied on subsequent loads
+ * via the GUI or CLI. Run CLI with '--help' for additional information on how to override these arguments.
+ * @cliArgs --board "/ti/boards/LP_CC1352P7_1" --rtos "freertos" --product "simplelink_cc13xx_cc26xx_sdk@7.10.02.23"
+ * @versions {"tool":"1.16.2+3028"}
+ */
+
+/**
+ * Import the modules used in this configuration.
+ */
+const FreeRTOS = scripting.addModule("/freertos/FreeRTOS");
+const GPIO     = scripting.addModule("/ti/drivers/GPIO");
+const GPIO1    = GPIO.addInstance();
+const UART2    = scripting.addModule("/ti/drivers/UART2");
+const UART21   = UART2.addInstance();
+const Settings = scripting.addModule("/ti/posix/freertos/Settings");
+
+/**
+ * Write custom configuration values to the imported modules.
+ */
+GPIO1.$hardware = system.deviceData.board.components.LED_RED;
+GPIO1.$name     = "CONFIG_GPIO_LED_0";
+
+UART21.$name              = "CONFIG_UART2_0";
+UART21.uart.$assign       = "UART1";
+UART21.uart.txPin.$assign = "boosterpack.23";
+UART21.uart.rxPin.$assign = "boosterpack.24";
+
+const CCFG              = scripting.addModule("/ti/devices/CCFG", {}, false);
+CCFG.ccfgTemplate.$name = "ti_devices_CCFG_CCFGCC26XXTemplate0";
+
+/**
+ * Pinmux solution for unlocked pins/peripherals. This ensures that minor changes to the automatic solver in a future
+ * version of the tool will not impact the pinmux you originally saw.  These lines can be completely deleted in order to
+ * re-solve from scratch.
+ */
+GPIO1.gpioPin.$suggestSolution = "boosterpack.39";
