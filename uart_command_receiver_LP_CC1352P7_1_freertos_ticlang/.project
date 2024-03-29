@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <projectDescription>
-	<name>uart2echo_LP_CC1352P7_1_freertos_ticlang</name>
+	<name>uart_command_receiver_LP_CC1352P7_1_freertos_ticlang</name>
 	<comment></comment>
 	<projects>
 	</projects>
