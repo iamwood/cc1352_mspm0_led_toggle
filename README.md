@@ -7,7 +7,6 @@ Once each board has been flashed with the corresponding built binaries, the MSPM
 With this in mind, the following connections are required:
 
 * Female-to-female from PB7 (MSPM0) to DIO25 (CC1352), PB6 (MSPM0) to DIO26 (CC1352)
-* Signaling cable from controller to PA28 and PA31 (serial-to-USB cable with Putty connection works well)
-* Power and ground for both boards
+* Both boards connected with USB-to-micro (only MSPM0 uses the UART connection, both utilize power and ground through cable)
 
 Once these are made, one green and one red light should be lit up on both boards. By sending the above commands (via Putty, for example), the red light on the CC1352 board should turn on and off.
