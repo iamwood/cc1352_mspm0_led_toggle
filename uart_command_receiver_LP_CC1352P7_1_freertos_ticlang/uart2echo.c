@@ -35,6 +35,7 @@
  */
 #include <stdint.h>
 #include <stddef.h>
+#include <string.h>
 
 /* Driver Header files */
 #include <ti/drivers/GPIO.h>
@@ -48,7 +49,7 @@
  */
 void *mainThread(void *arg0)
 {
-    char input;
+    uint8_t input[4];
     const char echoPrompt[] = "Echoing characters:\r\n";
     const char newlinePart[] = "\r\n";
     UART2_Handle uart;
@@ -56,6 +57,9 @@ void *mainThread(void *arg0)
     size_t bytesRead;
     size_t bytesWritten = 0;
     uint32_t status     = UART2_STATUS_SUCCESS;
+    uint8_t turnOnCommand[]  = {0x30, 0x31, 0x32, 0x33};
+    uint8_t turnOffCommand[] = {0x31, 0x32, 0x33, 0x34};
+    uint8_t toggleCommand[]  = {0x32, 0x33, 0x34, 0x35};
 
     /* Call driver init functions */
     GPIO_init();
@@ -86,7 +90,7 @@ void *mainThread(void *arg0)
         bytesRead = 0;
         while (bytesRead == 0)
         {
-            status = UART2_read(uart, &input, 1, &bytesRead);
+            status = UART2_read(uart, &input, 4, &bytesRead);
 
             if (status != UART2_STATUS_SUCCESS)
             {
@@ -95,29 +99,12 @@ void *mainThread(void *arg0)
             }
         }
 
-        if (input == 'z') {
-            GPIO_write(CONFIG_GPIO_LED_0, CONFIG_GPIO_LED_OFF);
-        } else if (input == 'x') {
+        if (!memcmp(input, turnOnCommand, sizeof(turnOnCommand))) {
             GPIO_write(CONFIG_GPIO_LED_0, CONFIG_GPIO_LED_ON);
-        } else if (input == 't') {
+        } else if (!memcmp(input, turnOffCommand, sizeof(turnOffCommand))) {
+            GPIO_write(CONFIG_GPIO_LED_0, CONFIG_GPIO_LED_OFF);
+        } else if (!memcmp(input, toggleCommand, sizeof(toggleCommand))) {
             GPIO_toggle(CONFIG_GPIO_LED_0);
         }
-
-
-//        bytesWritten = 0;
-//        while (bytesWritten == 0)
-//        {
-//            if (input == '\r') {
-//                status = UART2_write(uart, newlinePart, sizeof(newlinePart), &bytesWritten);
-//            } else {
-//                status = UART2_write(uart, &input, 1, &bytesWritten);
-//            }
-//
-//            if (status != UART2_STATUS_SUCCESS)
-//            {
-//                /* UART2_write() failed */
-//                while (1) {}
-//            }
-//        }
     }
 }

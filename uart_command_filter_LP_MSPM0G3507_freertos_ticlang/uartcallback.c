@@ -136,6 +136,9 @@ void mainThread(void *arg0)
     uint32_t status   = UART_STATUS_SUCCESS;
     static char input = 0;
     const char newlineOutput[] = "\r\n";
+    uint8_t turnOnCommand[]  = {0x30, 0x31, 0x32, 0x33};
+    uint8_t turnOffCommand[] = {0x31, 0x32, 0x33, 0x34};
+    uint8_t toggleCommand[]  = {0x32, 0x33, 0x34, 0x35};
 
     /* Create semaphore */
     semStatus = sem_init(&appSema, 0, 0);
@@ -175,9 +178,14 @@ void mainThread(void *arg0)
         /* if using buffer mode for both TX and RX then comment out below line */
         sem_wait(&appSema);
 
-        if (input == 'z' | input == 'x' | input == 't') {
-            UART_write(uartSender, &input, 1, NULL);
+        if (input == 'z') {
+            UART_write(uartSender, &turnOnCommand, 4, NULL);
+        } else if (input == 'x') {
+            UART_write(uartSender, &turnOffCommand, 4, NULL);
+        } else if (input == 't') {
+            UART_write(uartSender, &toggleCommand, 4, NULL);
         }
+
 
         if (numBytesRead > 0) {
             if (input == '\r') {
