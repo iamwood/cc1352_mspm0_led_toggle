@@ -13,6 +13,7 @@ const GPIO     = scripting.addModule("/ti/drivers/GPIO");
 const GPIO1    = GPIO.addInstance();
 const UART2    = scripting.addModule("/ti/drivers/UART2");
 const UART21   = UART2.addInstance();
+const UART22   = UART2.addInstance();
 const Settings = scripting.addModule("/ti/posix/freertos/Settings");
 
 /**
@@ -29,9 +30,15 @@ UART21.uart.rxPin.$assign = "boosterpack.24";
 const CCFG              = scripting.addModule("/ti/devices/CCFG", {}, false);
 CCFG.ccfgTemplate.$name = "ti_devices_CCFG_CCFGCC26XXTemplate0";
 
+UART22.$name     = "CONFIG_UART2_1";
+UART22.$hardware = system.deviceData.board.components.XDS110UART;
+
 /**
  * Pinmux solution for unlocked pins/peripherals. This ensures that minor changes to the automatic solver in a future
  * version of the tool will not impact the pinmux you originally saw.  These lines can be completely deleted in order to
  * re-solve from scratch.
  */
-GPIO1.gpioPin.$suggestSolution = "boosterpack.39";
+GPIO1.gpioPin.$suggestSolution     = "boosterpack.39";
+UART22.uart.$suggestSolution       = "UART0";
+UART22.uart.txPin.$suggestSolution = "boosterpack.4";
+UART22.uart.rxPin.$suggestSolution = "boosterpack.3";

@@ -50,6 +50,7 @@ static volatile UART_Handle uartReceiver;
 static volatile UART_Handle uartSender;
 UART_Params uartReceiverParams;
 UART_Params uartSenderParams;
+static const uint8_t frameFlag = 0x7e;
 void receiverReadCallbackFxn(UART_Handle handle, void *buffer, size_t count, void *userArg,
     int_fast16_t status);
 void callbackFxnTx(UART_Handle handle, void *buffer, size_t count,
@@ -111,7 +112,7 @@ void uartInitReceiver(void)
 }
 void uartInitSender(void)
 {
-    /* Initialise it with default parameters */
+    /* Initialize it with default parameters */
     UART_Params_init(&uartSenderParams);
     uartSenderParams.readMode     = UART_Mode_CALLBACK;
     uartSenderParams.baudRate     = CONFIG_UART_BAUD_RATE;
@@ -123,6 +124,12 @@ void uartInitSender(void)
         __BKPT();
     }
 }
+void sendFrame(UART_Handle uartHandle, const void *frameBuffer, size_t frameSize)
+{
+    UART_write(uartHandle, &frameFlag, 1, NULL);
+    UART_write(uartHandle, frameBuffer, frameSize, NULL);
+    UART_write(uartHandle, &frameFlag, 1, NULL);
+}
 
 /*
  *  ======== mainThread ========
@@ -131,14 +138,18 @@ void mainThread(void *arg0)
 {
     size_t rdCount          = 0;
     size_t wrCount          = 0;
+    bool reading = true;
+    uint8_t inputLength = 0;
+    char inputBuffer[50];
     const char echoPrompt[] = "Echoing characters:\r\n";
     int32_t semStatus;
     uint32_t status   = UART_STATUS_SUCCESS;
     static char input = 0;
     const char newlineOutput[] = "\r\n";
-    uint8_t turnOnCommand[]  = {0x30, 0x31, 0x32, 0x33};
-    uint8_t turnOffCommand[] = {0x31, 0x32, 0x33, 0x34};
-    uint8_t toggleCommand[]  = {0x32, 0x33, 0x34, 0x35};
+    char commandStrings[3][7] = {"on", "off", "toggle"};
+    uint8_t turnOnCommand[]  = {0x81, 0x02, 0x36, 0xf9, 0xf7};
+    uint8_t turnOffCommand[] = {0x81, 0x21, 0x45};
+    uint8_t toggleCommand[]  = {0x82, 0x33, 0x24, 0x73};
 
     /* Create semaphore */
     semStatus = sem_init(&appSema, 0, 0);
@@ -157,47 +168,45 @@ void mainThread(void *arg0)
 
     UART_write(uartReceiver, &echoPrompt, sizeof(echoPrompt), NULL);
 
-//    UART_write(uartSender, &turnOnSignalChar, sizeof(turnOnSignalChar), NULL);
-
     /* Loop forever echoing */
     while (1) {
         numBytesRead = 0;
 
-        /* Pass NULL for bytesRead since it's not used in this example */
-        status = UART_read(uartReceiver, &input, 1, NULL);
-        if (uartReceiverParams.readMode == UART_Mode_BLOCKING) {
-            numBytesRead = sizeof(input);
-        }
-        if (status != UART_STATUS_SUCCESS) {
-            /* UART_read() failed */
-            while (1) {
-            }
-        }
+        reading = true;
 
-        /* Do not write until read callback executes */
-        /* if using buffer mode for both TX and RX then comment out below line */
-        sem_wait(&appSema);
-
-        if (input == 'z') {
-            UART_write(uartSender, &turnOnCommand, 4, NULL);
-        } else if (input == 'x') {
-            UART_write(uartSender, &turnOffCommand, 4, NULL);
-        } else if (input == 't') {
-            UART_write(uartSender, &toggleCommand, 4, NULL);
-        }
-
-
-        if (numBytesRead > 0) {
+        while (reading) {
+            status = UART_read(uartReceiver, &input, 1, NULL);
+            sem_wait(&appSema);
             if (input == '\r') {
+                reading = false;
                 UART_write(uartReceiver, &newlineOutput, sizeof(newlineOutput), NULL);
-            }
-            status = UART_write(uartReceiver, &input, 1, NULL);
+            } else {
+                inputBuffer[inputLength] = input;
+                inputLength++;
 
-            if (status != UART_STATUS_SUCCESS) {
-                /* UART_write() failed */
-                while (1) {
+                status = UART_write(uartReceiver, &input, 1, NULL);
+                if (status != UART_STATUS_SUCCESS) {
+                    /* UART_write() failed */
+                    while (1) {
+                    }
                 }
             }
         }
+
+        if (inputLength == 2 && memcmp(inputBuffer, commandStrings[0], 2) == 0) {
+            sendFrame(uartSender, &turnOnCommand, sizeof(turnOnCommand));
+        } else if (inputLength == 3 && memcmp(inputBuffer, commandStrings[1], 3) == 0) {
+            sendFrame(uartSender, &turnOffCommand, sizeof(turnOffCommand));
+        } else if (inputLength == 6 && memcmp(inputBuffer, commandStrings[2], 6) == 0) {
+            sendFrame(uartSender, &toggleCommand, sizeof(toggleCommand));
+        }
+
+//        sendFrame(uartSender, &inputBuffer, inputLength);
+
+//        UART_write(uartSender, &frameFlag, 1, NULL);
+//        UART_write(uartSender, &inputBuffer, inputLength, NULL);
+//        UART_write(uartSender, &frameFlag, 1, NULL);
+
+        inputLength = 0;
     }
 }

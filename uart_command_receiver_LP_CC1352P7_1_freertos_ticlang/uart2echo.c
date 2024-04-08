@@ -49,17 +49,22 @@
  */
 void *mainThread(void *arg0)
 {
-    uint8_t input[4];
+    uint8_t input;
+    uint8_t inputLength = 0;
+    uint8_t inputBuffer[50];
     const char echoPrompt[] = "Echoing characters:\r\n";
     const char newlinePart[] = "\r\n";
     UART2_Handle uart;
+    UART2_Handle uartFrameEcho;
     UART2_Params uartParams;
     size_t bytesRead;
     size_t bytesWritten = 0;
+    bool waitingForFrame = true;
+    bool readingFrame = true;
     uint32_t status     = UART2_STATUS_SUCCESS;
-    uint8_t turnOnCommand[]  = {0x30, 0x31, 0x32, 0x33};
-    uint8_t turnOffCommand[] = {0x31, 0x32, 0x33, 0x34};
-    uint8_t toggleCommand[]  = {0x32, 0x33, 0x34, 0x35};
+    uint8_t turnOnCommand[]  = {0x81, 0x02, 0x36, 0xf9, 0xf7};
+    uint8_t turnOffCommand[] = {0x81, 0x21, 0x45};
+    uint8_t toggleCommand[]  = {0x82, 0x33, 0x24, 0x73};
 
     /* Call driver init functions */
     GPIO_init();
@@ -72,8 +77,9 @@ void *mainThread(void *arg0)
     uartParams.baudRate = 115200;
 
     uart = UART2_open(CONFIG_UART2_0, &uartParams);
+    uartFrameEcho = UART2_open(CONFIG_UART2_1, &uartParams);
 
-    if (uart == NULL)
+    if (uart == NULL || uartFrameEcho == NULL)
     {
         /* UART2_open() failed */
         while (1) {}
@@ -82,29 +88,48 @@ void *mainThread(void *arg0)
     /* Turn on user LED to indicate successful initialization */
     GPIO_write(CONFIG_GPIO_LED_0, CONFIG_GPIO_LED_ON);
 
-//    UART2_write(uart, echoPrompt, sizeof(echoPrompt), &bytesWritten);
-
     /* Loop forever echoing */
     while (1)
     {
-        bytesRead = 0;
-        while (bytesRead == 0)
-        {
-            status = UART2_read(uart, &input, 4, &bytesRead);
+        while (waitingForFrame) {
+            status = UART2_read(uart, &input, 1, &bytesRead);
 
-            if (status != UART2_STATUS_SUCCESS)
-            {
+            if (status != UART2_STATUS_SUCCESS) {
                 /* UART2_read() failed */
                 while (1) {}
             }
+
+            if (input == 0x7e) {
+                waitingForFrame = false;
+            }
         }
 
-        if (!memcmp(input, turnOnCommand, sizeof(turnOnCommand))) {
+        while (readingFrame) {
+            status = UART2_read(uart, &input, 1, NULL);
+            if (status != UART2_STATUS_SUCCESS) {
+                /* UART2_read() failed */
+                while (1) {}
+            }
+            if (input == 0x7e) {
+                readingFrame = false;
+            } else {
+                inputBuffer[inputLength] = input;
+                inputLength++;
+            }
+        }
+
+        UART2_write(uartFrameEcho, inputBuffer, inputLength, NULL);
+
+        if (inputLength == sizeof(turnOnCommand) && memcmp(inputBuffer, turnOnCommand, sizeof(turnOnCommand)) == 0) {
             GPIO_write(CONFIG_GPIO_LED_0, CONFIG_GPIO_LED_ON);
-        } else if (!memcmp(input, turnOffCommand, sizeof(turnOffCommand))) {
+        } else if (inputLength == sizeof(turnOffCommand) && memcmp(inputBuffer, turnOffCommand, sizeof(turnOffCommand)) == 0) {
             GPIO_write(CONFIG_GPIO_LED_0, CONFIG_GPIO_LED_OFF);
-        } else if (!memcmp(input, toggleCommand, sizeof(toggleCommand))) {
+        } else if (inputLength == sizeof(toggleCommand) && memcmp(inputBuffer, toggleCommand, sizeof(toggleCommand)) == 0) {
             GPIO_toggle(CONFIG_GPIO_LED_0);
         }
+
+        inputLength = 0;
+        readingFrame = true;
+        waitingForFrame = true;
     }
 }
